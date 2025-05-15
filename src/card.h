@@ -24,6 +24,7 @@ public:
     Suit getSuit() const;
     bool isFaceUp() const;
     std::string toString() const;
+    std::string toPokerStoveString() const;
     void print() const;
     void draw(sf::RenderWindow& window, float x, float y) const;
     void setFaceUp(bool faceUp);

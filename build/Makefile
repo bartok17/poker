@@ -249,6 +249,30 @@ src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker.dir/build.make CMakeFiles/poker.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
+src/playerAI.o: src/playerAI.cpp.o
+.PHONY : src/playerAI.o
+
+# target to build an object file
+src/playerAI.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker.dir/build.make CMakeFiles/poker.dir/src/playerAI.cpp.o
+.PHONY : src/playerAI.cpp.o
+
+src/playerAI.i: src/playerAI.cpp.i
+.PHONY : src/playerAI.i
+
+# target to preprocess a source file
+src/playerAI.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker.dir/build.make CMakeFiles/poker.dir/src/playerAI.cpp.i
+.PHONY : src/playerAI.cpp.i
+
+src/playerAI.s: src/playerAI.cpp.s
+.PHONY : src/playerAI.s
+
+# target to generate assembly for a file
+src/playerAI.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker.dir/build.make CMakeFiles/poker.dir/src/playerAI.cpp.s
+.PHONY : src/playerAI.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -273,6 +297,9 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
+	@echo "... src/playerAI.o"
+	@echo "... src/playerAI.i"
+	@echo "... src/playerAI.s"
 .PHONY : help
 
 

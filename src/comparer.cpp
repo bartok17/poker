@@ -88,8 +88,7 @@ int Comparer::getHandType(const Hand& hand)
         maxType = std::max(maxType, 4);
     }
 
-    // High Card is 0, already default
-
+    // High Card (default)
     return maxType;
 }
 

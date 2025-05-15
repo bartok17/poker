@@ -7,11 +7,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(SFML_DIR "/opt/homebrew/lib/cmake/SFML")
 find_package(SFML 2 COMPONENTS graphics window system REQUIRED)
 
-# Include directories for headers
-include_directories(${CMAKE_SOURCE_DIR}/include)
-
-# Link directories for libraries
-link_directories(${CMAKE_SOURCE_DIR}/lib)
 
 # Add source files
 set(SOURCES
@@ -20,10 +15,11 @@ set(SOURCES
     src/comparer.cpp
     src/deck.cpp
     src/hand.cpp
+    src/playerAI.cpp
 )
 
 # Add the executable
 add_executable(poker ${SOURCES})
 
 # Link libraries
-target_link_libraries(poker sfml-graphics sfml-window sfml-system pokerstove)
+target_link_libraries(poker sfml-graphics sfml-window sfml-system)

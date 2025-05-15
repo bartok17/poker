@@ -85,12 +85,12 @@ clean: CMakeFiles/poker.dir/clean
 CMakeFiles/poker.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker.dir/build.make CMakeFiles/poker.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker.dir/build.make CMakeFiles/poker.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/bartosztokarz/CLionProjects/poker/build/CMakeFiles --progress-num=1,2,3,4,5,6 "Built target poker"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/bartosztokarz/CLionProjects/poker/build/CMakeFiles --progress-num=1,2,3,4,5,6,7 "Built target poker"
 .PHONY : CMakeFiles/poker.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/poker.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/bartosztokarz/CLionProjects/poker/build/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/bartosztokarz/CLionProjects/poker/build/CMakeFiles 7
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/poker.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/bartosztokarz/CLionProjects/poker/build/CMakeFiles 0
 .PHONY : CMakeFiles/poker.dir/rule
@@ -102,7 +102,7 @@ poker: CMakeFiles/poker.dir/rule
 # codegen rule for target.
 CMakeFiles/poker.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/poker.dir/build.make CMakeFiles/poker.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/bartosztokarz/CLionProjects/poker/build/CMakeFiles --progress-num=1,2,3,4,5,6 "Finished codegen for target poker"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/bartosztokarz/CLionProjects/poker/build/CMakeFiles --progress-num=1,2,3,4,5,6,7 "Finished codegen for target poker"
 .PHONY : CMakeFiles/poker.dir/codegen
 
 # clean rule for target.

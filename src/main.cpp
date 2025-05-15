@@ -10,6 +10,7 @@
 #include "card.h"
 #include "comparer.h"
 #include "deck.h"
+#include "playerAI.h"
 
 
 // Function declarations
@@ -70,6 +71,11 @@ int main() {
     bool player1Out = false;
     bool player2Out = false;
 
+    playerAI ai;
+
+    int lastCardsToShow = -1;
+    double lastP2Win = 0.0;
+
     std::vector<Card> communityCards;
     auto startNewRound = [&]() {
         deck.reset();
@@ -87,7 +93,7 @@ int main() {
         cardsToShow = 0;
         player1stake = 50; // Blind
         player2stake = 50; // Blind
-        pot = 100;         // Both players contribute 50
+        pot = 100;         // Both players contribute 50 to the pot (test only)
         player1score -= 50;
         player2score -= 50;
         finalStakePhase = false;
@@ -99,7 +105,7 @@ int main() {
         player2Out = false;
     };
 
-    // Call once before the main loop:
+    // Start the first round
     startNewRound();
 
     sf::RenderWindow window(sf::VideoMode(1920, 1080), "Poker Table");
@@ -127,7 +133,7 @@ int main() {
             if (event.type == sf::Event::Closed)
                 window.close();
 
-            // Handle quick bet buttons and submit/pass/wait
+            // Handle quick bet buttons
             if (event.type == sf::Event::MouseButtonPressed) {
                 auto mouse = sf::Mouse::getPosition(window);
 
@@ -151,7 +157,7 @@ int main() {
                             pendingStake += 100;
                         }
                     } else if (isButtonClicked(waitButton, mouse)) {
-                        // Wait: just advance the phase, don't add to pot or pendingStake
+                       
                         pendingStake = 0;
                         if (!finalStakePhase && !allInPhase && !riverBettingPhase) {
                             if (cardsToShow == 0)
@@ -160,16 +166,16 @@ int main() {
                                 cardsToShow = 4;
                             else if (cardsToShow == 4) {
                                 cardsToShow = 5;
-                                riverBettingPhase = true; // Start final betting round after river
+                                riverBettingPhase = true; 
                             }
                         } else if (riverBettingPhase && !allInPhase) {
-                            finalStakePhase = true; // After river betting, go to showdown
+                            finalStakePhase = true; 
                             riverBettingPhase = false;
                         }
                     } else if (isButtonClicked(resetButton, mouse)) {
                         pendingStake = 0;
                     } else if (isButtonClicked(passButton, mouse)) {
-                        // Pass: enemy wins immediately
+                        // Pass
                         gameFinished = true;
                         winner = 1;
                         winnerText = "You passed. Player 2 wins the pot of " + std::to_string(pot) + "!";
@@ -177,7 +183,7 @@ int main() {
                         player2score += pot;
                     } else if (isButtonClicked(submitButton, mouse)) {
                         if (pendingStake > 0) {
-                            // Clamp pendingStake to available score (all in)
+                            // handle all in
                             if (pendingStake > player1score) pendingStake = player1score;
                             if (pendingStake > player2score) pendingStake = player2score;
 
@@ -205,10 +211,10 @@ int main() {
                                     cardsToShow = 4;
                                 else if (cardsToShow == 4) {
                                     cardsToShow = 5;
-                                    riverBettingPhase = true; // Start final betting round after river
+                                    riverBettingPhase = true;
                                 }
                             } else if (riverBettingPhase && !allInPhase) {
-                                finalStakePhase = true; // After river betting, go to showdown
+                                finalStakePhase = true;
                                 riverBettingPhase = false;
                             }
                         }
@@ -233,9 +239,10 @@ int main() {
                         } else {
                             winnerText = "It's a draw! Pot: " + std::to_string(pot);
                             winner = 2;
-                            // Optionally refund: player1score += pot/2; player2score += pot/2;
+                            player1score += pot / 2;
+                            player2score += pot / 2;
                         }
-                        // Only now check for out-of-money
+                        // Check possible victories
                         if (player1score <= 0) player1Out = true;
                         if (player2score <= 0) player2Out = true;
                     }
@@ -246,9 +253,9 @@ int main() {
             }
         }
 
-        // After a submit or wait, check if finalStakePhase is true and not allInPhase and not gameFinished
+        // Check for game over conditions
         if (finalStakePhase && !allInPhase && !gameFinished) {
-            // Finish the round after the final betting phase
+            // Finish the round
             cardsToShow = 5;
             gameFinished = true;
 
@@ -266,9 +273,11 @@ int main() {
             } else {
                 winnerText = "It's a draw! Pot: " + std::to_string(pot);
                 winner = 2;
-                // Optionally refund: player1score += pot/2; player2score += pot/2;
+                // Refund: split the pot between both players
+                player1score += pot / 2;
+                player2score += pot / 2;
             }
-            // Only now check for out-of-money
+            // check possible victories
             if (player1score <= 0) player1Out = true;
             if (player2score <= 0) player2Out = true;
         }
@@ -284,12 +293,23 @@ int main() {
                 winnerText = "Player 2 is out of money! Player 1 wins the game!";
         }
 
-        window.clear(sf::Color(0, 100, 0)); // green table
+        window.clear(sf::Color(0, 100, 0)); 
+
+        if (static_cast<int>(cardsToShow) != lastCardsToShow) {
+            std::vector<Card> visibleBoard(communityCards.begin(), communityCards.begin() + cardsToShow);
+            // Update the AI's evaluation of player 2's hand           
+            lastP2Win = ai.evaluateHand(player2Hand, visibleBoard) * 100.0;
+            lastCardsToShow = static_cast<int>(cardsToShow);
+        }
+        sf::Text p2winText("Player 2 Win%: " + std::to_string(static_cast<int>(lastP2Win)) + "%", font, 28);
+        p2winText.setFillColor(sf::Color::Magenta);
+        p2winText.setPosition(1200, 40);
+        window.draw(p2winText);
 
         // Always show player 1's cards
         drawHand(player1Hand, window, font, 900, true);
 
-        // Show player 2's cards only if game finished AND player 1 lost
+        // Show player 2's cards under certain conditions
         bool showEnemy = gameFinished && winner == 1;
         drawHand(player2Hand, window, font, 100, showEnemy);
 
@@ -313,6 +333,14 @@ int main() {
         scoreText2.setPosition(1500, 40);
         window.draw(scoreText2);
 
+        // Draw winner info if game finished
+        if (gameFinished) {
+            sf::Text winText(winnerText, font, 28);
+            winText.setFillColor(sf::Color::White);
+            winText.setPosition(700, 700);
+            window.draw(winText);
+        }
+
         if (!gameFinished && !player1Out && !player2Out) {
             drawButton(window, submitButton);
             drawButton(window, add10Button);
@@ -325,14 +353,6 @@ int main() {
             drawButton(window, nextRoundButton);
         }
 
-        // Draw winner info if game finished
-        if (gameFinished) {
-            sf::Text winText(winnerText, font, 28);
-            winText.setFillColor(sf::Color::White);
-            winText.setPosition(700, 700); // Centered
-            window.draw(winText);
-        }
-
         window.display();
     }
 
@@ -341,18 +361,18 @@ int main() {
 
 void drawHand(const Hand& hand, sf::RenderWindow& window, sf::Font& font, float y, bool showCards) {
     const auto& cards = hand.getCards();
-    float handStartX = 600; // centered for 2 cards
+    float handStartX = 600; 
 
-    if (y == 900) { // For player 1 (bottom)
-        float handY1 = 800; // near bottom of 1080p
+    if (y == 900) { 
+        float handY1 = 800;
         for (size_t i = 0; i < 2 && i < cards.size(); ++i) {
-            float x = handStartX + i * 120; // more spacing
+            float x = handStartX + i * 120; 
             Card card = cards[i];
             card.setFaceUp(showCards);
             card.draw(window, x, handY1);
         }
-    } else if (y == 100) { // For player 2 (top)
-        float handY2 = 200; // near top
+    } else if (y == 100) {
+        float handY2 = 200; 
         for (size_t i = 0; i < 2 && i < cards.size(); ++i) {
             float x = handStartX + i * 120;
             Card card = cards[i];
@@ -363,7 +383,7 @@ void drawHand(const Hand& hand, sf::RenderWindow& window, sf::Font& font, float 
 }
 
 void drawCommunityCards(const std::vector<Card>& communityCards, size_t cardsToShow, sf::RenderWindow& window, sf::Font& font) {
-    float communityY = 500; // center of table
+    float communityY = 500; 
     float communityStartX = 500;
     for (size_t i = 0; i < communityCards.size(); ++i) {
         float x = communityStartX + i * 120;
@@ -377,17 +397,17 @@ void drawCommunityCards(const std::vector<Card>& communityCards, size_t cardsToS
 void drawStakes(int player1stake, int player2stake, int pendingStake, sf::RenderWindow& window, sf::Font& font) {
     sf::Text stakeText("Player 1 Stake: " + std::to_string(player1stake), font, 20);
     stakeText.setFillColor(sf::Color::Yellow);
-    stakeText.setPosition(50, 1000);    // Player 1 stake (bottom left)
+    stakeText.setPosition(50, 1000);   
     window.draw(stakeText);
 
     sf::Text stakeText2("Player 2 Stake: " + std::to_string(player2stake), font, 20);
     stakeText2.setFillColor(sf::Color::Yellow);
-    stakeText2.setPosition(50, 40);     // Player 2 stake (top left)
+    stakeText2.setPosition(50, 40);   
     window.draw(stakeText2);
 
     sf::Text pendingText("Pending: " + std::to_string(pendingStake), font, 30);
     pendingText.setFillColor(sf::Color::White);
-    pendingText.setPosition(50, 940);   // Pending (bottom left, above stake)
+    pendingText.setPosition(50, 940);  
     window.draw(pendingText);
 }
 

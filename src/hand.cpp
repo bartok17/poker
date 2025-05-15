@@ -28,7 +28,7 @@ std::string Hand::toString() const {
 Hand Hand::combineHands(const Hand& other) {
     Hand combined = *this;
     combined.cards.insert(combined.cards.end(), other.cards.begin(), other.cards.end());
-    return combined; // return by value, not by reference
+    return combined;
 }
 const std::vector<Card>& Hand::getCards() const {
     return cards;

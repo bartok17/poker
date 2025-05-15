@@ -13,6 +13,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/bartosztokarz/CLionProjects/poker/src/deck.cpp" "CMakeFiles/poker.dir/src/deck.cpp.o" "gcc" "CMakeFiles/poker.dir/src/deck.cpp.o.d"
   "/Users/bartosztokarz/CLionProjects/poker/src/hand.cpp" "CMakeFiles/poker.dir/src/hand.cpp.o" "gcc" "CMakeFiles/poker.dir/src/hand.cpp.o.d"
   "/Users/bartosztokarz/CLionProjects/poker/src/main.cpp" "CMakeFiles/poker.dir/src/main.cpp.o" "gcc" "CMakeFiles/poker.dir/src/main.cpp.o.d"
+  "/Users/bartosztokarz/CLionProjects/poker/src/playerAI.cpp" "CMakeFiles/poker.dir/src/playerAI.cpp.o" "gcc" "CMakeFiles/poker.dir/src/playerAI.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.
