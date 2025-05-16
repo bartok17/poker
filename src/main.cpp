@@ -12,9 +12,10 @@
 #include "deck.h"
 #include "playerAI.h"
 
-float AI_FOLD_THRESHOLD = 0.25; // AI folds 
+float AI_FOLD_THRESHOLD = 0.35; // AI folds 
 float AI_RAISE_THRESHOLD = 0.55; // AI raises 
-float AI_CALL_THRESHOLD = 0.55; // AI calls 
+float AI_CALL_THRESHOLD = 0.55; // AI calls
+float AI_AGGRESSIVENESS = 0;
 
 // Forward declarations for helper functions
 struct Button;
@@ -103,6 +104,10 @@ bool isButtonClicked(const Button& btn, sf::Vector2i mouse) {
 
 
 int main() {
+    AI_AGGRESSIVENESS = ((static_cast<float>(rand()) / RAND_MAX) * 0.2f) - 0.1f;
+    AI_CALL_THRESHOLD += AI_AGGRESSIVENESS;
+    AI_RAISE_THRESHOLD += AI_AGGRESSIVENESS;
+    AI_FOLD_THRESHOLD += AI_AGGRESSIVENESS;
     // Game state variables
     size_t cardsToShow = 0;
     bool allInPhase = false;
@@ -593,13 +598,13 @@ void drawGameElements(sf::RenderWindow& window, sf::Font& font,
                       const std::vector<Button*>& activeButtons,
                       double lastP2WinPercentage) {
     window.clear(sf::Color(0, 100, 0)); // Dark green table color
-
+/*
     // AI win percentage
     sf::Text p2winText("Opponent Win%: " + std::to_string(static_cast<int>(lastP2WinPercentage)) + "%", font, 28);
     p2winText.setFillColor(sf::Color::Magenta);
     p2winText.setPosition(1200, 40);
     window.draw(p2winText);
-
+*/
     // Hands
     drawHand(player1Hand, window, font, 900, true); // Player 1's cards always visible
     drawHand(player2Hand, window, font, 100, gameFinished); // Player 2's cards visible when round/game is finished

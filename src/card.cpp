@@ -1,7 +1,6 @@
 #include "card.h"
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
-#include <SFML/System.hpp>
+
+
 #include <map>
 #include <iostream>
 
