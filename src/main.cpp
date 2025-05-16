@@ -41,20 +41,20 @@ void determineAndSetWinner(Hand& player1Hand, Hand& player2Hand, const std::vect
                            int& pot, int& player1score, int& player2score,
                            std::string& winnerText, int& winner, bool& player1Out, bool& player2Out);
 
-void handlePlayerBetAction(playerAI& ai, // Pass AI object
+void handlePlayerBetAction(playerAI& ai,
                            int& pendingStake, int& player1score, int& player2score,
                            int& player1BetDisplay, int& player2BetDisplay, int& pot,
                            bool& allInPhase, size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
-                           const Hand& player2Hand, const std::vector<Card>& communityCards, // For AI
-                           std::string& winnerText, bool& gameFinished, int& winner); // For AI folding etc.
+                           const Hand& player2Hand, const std::vector<Card>& communityCards, 
+                           std::string& winnerText, bool& gameFinished, int& winner);
 
-void handlePlayerWaitAction(playerAI& ai, // Pass AI object
+void handlePlayerWaitAction(playerAI& ai, 
                             size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
                             int& player1score, int& player2score,
                             int& player1BetDisplay, int& player2BetDisplay, int& pot,
                             bool& allInPhase,
-                            const Hand& player2Hand, const std::vector<Card>& communityCards, // For AI
-                            std::string& winnerText, bool& gameFinished, int& winner); // For AI folding etc.
+                            const Hand& player2Hand, const std::vector<Card>& communityCards, 
+                            std::string& winnerText, bool& gameFinished, int& winner); 
 
 void handlePlayerPassAction(bool& gameFinished, int& winner, std::string& winnerText, int& pot, int& player2score, int& player1score);
 
@@ -86,7 +86,6 @@ Button createButton(const std::string& label, sf::Font& font, sf::Vector2f size,
     btn.text.setFont(font);
     btn.text.setCharacterSize(textSize);
     btn.text.setFillColor(textColor);
-    // Center text
     sf::FloatRect textRect = btn.text.getLocalBounds();
     btn.text.setOrigin(textRect.left + textRect.width / 2.0f, textRect.top + textRect.height / 2.0f);
     btn.text.setPosition(pos.x + size.x / 2.0f, pos.y + size.y / 2.0f);
@@ -122,8 +121,8 @@ int main() {
 
     int player1score = 2000;
     int player2score = 2000;
-    int player1BetDisplay = 0; // Stores the amount P1 bet in the last action for display
-    int player2BetDisplay = 0; // Stores the amount P2 bet/called in the last action for display
+    int player1BetDisplay = 0;
+    int player2BetDisplay = 0; 
     int pot = 0;
     int pendingStake = 0;
     
@@ -134,7 +133,7 @@ int main() {
 
     playerAI ai;
     double lastP2WinPercentage = 0.0;
-    int lastCardsToShowState = -1; // Used to track changes in cardsToShow for AI update
+    int lastCardsToShowState = -1;
 
     // Initial round setup
     startNewRound(deck, player1Hand, player2Hand, communityCards, cardsToShow,
@@ -189,7 +188,7 @@ int main() {
                         pendingStake = 0;
                     } else if (isButtonClicked(passButton, mousePos)) {
                         handlePlayerPassAction(gameFinished, winner, winnerText, pot, player2score, player1score);
-                         if (player1score <= 0) player1Out = true; // Check if passing made player lose
+                         if (player1score <= 0) player1Out = true; 
                          if (player2score <= 0) player2Out = true;
                     } else if (isButtonClicked(submitButton, mousePos)) {
                         if (pendingStake > 0) {
@@ -204,15 +203,15 @@ int main() {
                     startNewRound(deck, player1Hand, player2Hand, communityCards, cardsToShow,
                                   player1score, player2score, player1BetDisplay, player2BetDisplay, pot,
                                   finalStakePhase, gameFinished, riverBettingPhase, winnerText, winner, allInPhase);
-                    lastCardsToShowState = -1; // Reset for AI update
+                    lastCardsToShowState = -1; 
                 }
             }
         }
 
         // Game State Updates (post-event processing)
         if (finalStakePhase && !gameFinished) {
-            cardsToShow = 5; // Ensure all cards are revealed
-            gameFinished = true; // Mark round as finished
+            cardsToShow = 5; 
+            gameFinished = true; 
             determineAndSetWinner(player1Hand, player2Hand, communityCards, pot, player1score, player2score,
                                   winnerText, winner, player1Out, player2Out);
         }
@@ -264,13 +263,13 @@ void startNewRound(Deck& deck, Hand& player1Hand, Hand& player2Hand, std::vector
     }
 
     cardsToShow = 0;
-    int blindAmount = 50; // Example blind
+    int blindAmount = 50;
     
     // Reset street bets
     player1BetDisplay = 0;
     player2BetDisplay = 0;
 
-    // Players post blinds - these are their first bets for the pre-flop street
+    // Players post blinds
     int p1BlindPaid = std::min(blindAmount, player1score);
     player1score -= p1BlindPaid;
     player1BetDisplay = p1BlindPaid;
@@ -290,8 +289,7 @@ void startNewRound(Deck& deck, Hand& player1Hand, Hand& player2Hand, std::vector
 }
 
 void advanceGamePhase(size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
-                      int& player1BetDisplay, int& player2BetDisplay) { // Added bet displays
-    // Reset street bets for the new street
+                      int& player1BetDisplay, int& player2BetDisplay) {
     player1BetDisplay = 0;
     player2BetDisplay = 0;
 
@@ -325,29 +323,27 @@ void determineAndSetWinner(Hand& player1Hand, Hand& player2Hand, const std::vect
         winnerText = "It's a draw! Pot: " + std::to_string(pot);
         winner = 2;
         player1score += pot / 2;
-        player2score += pot - (pot / 2); // Handles odd pots correctly for P2
+        player2score += pot - (pot / 2); 
     }
-    pot = 0; // Pot is awarded
+    pot = 0; 
 
     if (player1score <= 0) player1Out = true;
     if (player2score <= 0) player2Out = true;
 }
 
-void handlePlayerBetAction(playerAI& ai, // Pass AI object
+void handlePlayerBetAction(playerAI& ai,
                            int& pendingStake, int& player1score, int& player2score,
                            int& player1BetDisplay, int& player2BetDisplay, int& pot,
                            bool& allInPhase, size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
-                           const Hand& player2Hand, const std::vector<Card>& communityCards, // For AI
-                           std::string& winnerText, bool& gameFinished, int& winner) { // For AI folding etc.
+                           const Hand& player2Hand, const std::vector<Card>& communityCards,
+                           std::string& winnerText, bool& gameFinished, int& winner) {
     
-    int p1TotalBetForStreet = pendingStake; // pendingStake is the total P1 wants to have bet this street
+    int p1TotalBetForStreet = pendingStake; 
     int p1AdditionalBet = p1TotalBetForStreet - player1BetDisplay;
 
     // Player 1 must at least call P2's current bet, or be all-in
     if (p1TotalBetForStreet < player2BetDisplay && p1TotalBetForStreet < (player1score + player1BetDisplay)) {
-        // Invalid bet by P1 (trying to bet less than call, not all-in)
-        // For simplicity, we can just return or cap P1's bet.
-        // Or, assume UI prevents this. Let's cap it for safety.
+    
         p1TotalBetForStreet = player2BetDisplay; 
         p1AdditionalBet = p1TotalBetForStreet - player1BetDisplay;
     }
@@ -366,42 +362,39 @@ void handlePlayerBetAction(playerAI& ai, // Pass AI object
     winnerText = "You bet to " + std::to_string(player1BetDisplay) + ".";
 
     // --- AI's Response ---
-    if (gameFinished) return; // If P1's bet made them win (e.g. P2 already folded - though not possible here)
-
+    if (gameFinished) return;
     int amountForAIToCall = player1BetDisplay - player2BetDisplay;
     std::vector<Card> visibleBoard;
-    if (cardsToShow <= communityCards.size()) { // Ensure cardsToShow is valid
+    if (cardsToShow <= communityCards.size()) {
          visibleBoard.assign(communityCards.begin(), communityCards.begin() + std::min(cardsToShow, communityCards.size()));
     }
-    double winChance = ai.evaluateHand(player2Hand, visibleBoard); // Default 1000 iterations
+    double winChance = ai.evaluateHand(player2Hand, visibleBoard); 
 
-    int aiActionAmount = 0; // Money AI adds to pot this action
-
-    if (amountForAIToCall > 0) { // AI needs to respond to P1's bet/raise
-        if (winChance < AI_FOLD_THRESHOLD && player2score > amountForAIToCall) { // AI Folds (if not forced all-in to call)
+    int aiActionAmount = 0; 
+    if (amountForAIToCall > 0) { 
+        if (winChance < AI_FOLD_THRESHOLD && player2score > amountForAIToCall) { 
             gameFinished = true;
-            winner = 0; // Player 1 wins
+            winner = 0;
             winnerText += " Player 2 folds. You win!";
             player1score += pot; 
             pot = 0;
-        } else if (winChance < AI_RAISE_THRESHOLD || amountForAIToCall >= player2score) { // AI Calls (or calls all-in)
+        } else if (winChance < AI_RAISE_THRESHOLD || amountForAIToCall >= player2score) { 
             aiActionAmount = std::min(amountForAIToCall, player2score);
             player2score -= aiActionAmount;
             pot += aiActionAmount;
             player2BetDisplay += aiActionAmount;
             winnerText += " Player 2 calls " + std::to_string(aiActionAmount) + ".";
             if (player2score == 0) allInPhase = true;
-            // Stakes are even, betting round for street ends
             if (!allInPhase && !gameFinished) {
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
             }
-        } else { // AI Raises
+        } else { 
             int aiCallPart = std::min(amountForAIToCall, player2score);
             int aiCanRaiseMax = player2score - aiCallPart;
 
             if (aiCanRaiseMax > 0) {
-                int aiRaisePart = std::min({player1BetDisplay, pot / 2, aiCanRaiseMax}); // Example raise sizing
-                if (aiRaisePart <= 0) aiRaisePart = std::min(50, aiCanRaiseMax); // Min raise if others are 0
+                int aiRaisePart = std::min({player1BetDisplay, pot / 2, aiCanRaiseMax}); 
+                if (aiRaisePart <= 0) aiRaisePart = std::min(50, aiCanRaiseMax);
                 
                 aiActionAmount = aiCallPart + aiRaisePart;
 
@@ -410,16 +403,11 @@ void handlePlayerBetAction(playerAI& ai, // Pass AI object
                 player2BetDisplay += aiActionAmount;
                 winnerText += " Player 2 raises to " + std::to_string(player2BetDisplay) + ".";
                 if (player2score == 0) allInPhase = true;
-                // P1 would need to act again. Simplified: street ends. P1 needs to call this next.
-                // Or, for true turn-based, set currentPlayer = P1.
-                // For now, we advance. This implies P1 must meet the raise to continue.
+                
                  if (!allInPhase && !gameFinished) {
-                    // advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
-                    // Actually, if AI raises, the betting round is NOT over. P1 must respond.
-                    // This simplified model will just advance. A full model needs a currentPlayer loop.
-                    // Let's assume for now the game will prompt P1 to call/fold to AI's raise implicitly.
+                    
                  }
-            } else { // Cannot raise, just call
+            } else { 
                 aiActionAmount = std::min(amountForAIToCall, player2score);
                 player2score -= aiActionAmount;
                 pot += aiActionAmount;
@@ -440,9 +428,8 @@ void handlePlayerBetAction(playerAI& ai, // Pass AI object
              if (!allInPhase && !gameFinished) {
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
             }
-        } else { // P1 made a bet/raise, AI needs to respond (amountForAIToCall logic above handles this)
-            // This path might be redundant if amountForAIToCall correctly captures P1's bet.
-            // The logic above for amountForAIToCall > 0 should cover AI's response to P1's bet.
+        } else {
+            //redundant option
         }
     }
 
@@ -457,15 +444,15 @@ void handlePlayerBetAction(playerAI& ai, // Pass AI object
     }
 }
 
-void handlePlayerWaitAction(playerAI& ai, // Pass AI object
+void handlePlayerWaitAction(playerAI& ai, 
                             size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
                             int& player1score, int& player2score,
                             int& player1BetDisplay, int& player2BetDisplay, int& pot,
                             bool& allInPhase,
-                            const Hand& player2Hand, const std::vector<Card>& communityCards, // For AI
-                            std::string& winnerText, bool& gameFinished, int& winner) { // For AI folding etc.
+                            const Hand& player2Hand, const std::vector<Card>& communityCards,
+                            std::string& winnerText, bool& gameFinished, int& winner) {
 
-    if (player1BetDisplay < player2BetDisplay) { // P1 must Call P2's bet
+    if (player1BetDisplay < player2BetDisplay) { 
         int amountToCall = player2BetDisplay - player1BetDisplay;
         int p1ActualCall = std::min(amountToCall, player1score);
 
@@ -474,43 +461,39 @@ void handlePlayerWaitAction(playerAI& ai, // Pass AI object
         player1BetDisplay += p1ActualCall;
         winnerText = "You call " + std::to_string(p1ActualCall) + ".";
         if (player1score == 0) allInPhase = true;
-        // Stakes are even. Street ends.
+        
         if (!allInPhase && !gameFinished) {
             advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
         }
-    } else { // P1 Checks (player1BetDisplay == player2BetDisplay, meaning no outstanding bet from P2)
+    } else { 
         winnerText = "You check.";
-        // AI's turn to check or bet
         std::vector<Card> visibleBoard;
         if (cardsToShow <= communityCards.size()) {
             visibleBoard.assign(communityCards.begin(), communityCards.begin() + std::min(cardsToShow, communityCards.size()));
         }
         double winChance = ai.evaluateHand(player2Hand, visibleBoard);
         
-        if (winChance > AI_RAISE_THRESHOLD && player2score > 0) { // AI Bets
-            int aiBetAmount = std::min({pot / 2, player2score / 2, player2score}); // Example bet sizing
-            if (aiBetAmount <= 0) aiBetAmount = std::min(50, player2score); // Min bet if pot/2 is 0
+        if (winChance > AI_RAISE_THRESHOLD && player2score > 0) {
+            int aiBetAmount = std::min({pot / 2, player2score / 2, player2score}); 
+            if (aiBetAmount <= 0) aiBetAmount = std::min(50, player2score);
 
             if (aiBetAmount > 0) {
                 player2score -= aiBetAmount;
                 pot += aiBetAmount;
-                player2BetDisplay += aiBetAmount; // AI's street bet increases
+                player2BetDisplay += aiBetAmount;
                 winnerText += " Player 2 bets " + std::to_string(aiBetAmount) + ".";
                 if (player2score == 0) allInPhase = true;
-                // P1 needs to respond. Simplified: street ends.
                  if (!allInPhase && !gameFinished) {
-                    // advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
-                    // Betting round not over. P1 must respond.
+                   
                  }
-            } else { // AI cannot make a valid bet, so checks
+            } else { 
                  winnerText += " Player 2 checks.";
-                 if (!allInPhase && !gameFinished) { // Both checked
+                 if (!allInPhase && !gameFinished) {
                     advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
                  }
             }
-        } else { // AI Checks
+        } else {
             winnerText += " Player 2 checks.";
-            // Both P1 and P2 checked. Street ends.
             if (!allInPhase && !gameFinished) {
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
             }
@@ -550,12 +533,12 @@ void updateAIInfo(playerAI& ai, const Hand& player2Hand, const std::vector<Card>
 // Drawing Function Implementations
 void drawHand(const Hand& hand, sf::RenderWindow& window, sf::Font& font, float yPosCategory, bool showCards) {
     const auto& cards = hand.getCards();
-    float handStartX = 800; // Centered more
-    float cardOffsetY = (yPosCategory == 900) ? 800 : 200; // Player 1 y : Player 2 y
+    float handStartX = 800; 
+    float cardOffsetY = (yPosCategory == 900) ? 800 : 200; 
 
-    for (size_t i = 0; i < cards.size(); ++i) { // Draw all cards in hand (usually 2)
+    for (size_t i = 0; i < cards.size(); ++i) { 
         float x = handStartX + i * 120;
-        Card card = cards[i]; // Make a copy to modify faceUp status for drawing
+        Card card = cards[i]; 
         card.setFaceUp(showCards);
         card.draw(window, x, cardOffsetY);
     }
@@ -563,10 +546,10 @@ void drawHand(const Hand& hand, sf::RenderWindow& window, sf::Font& font, float 
 
 void drawCommunityCards(const std::vector<Card>& communityCards, size_t cardsToShow, sf::RenderWindow& window, sf::Font& font) {
     float communityY = 500;
-    float communityStartX = (1920 - (5 * 110 - 10)) / 2.0f; // Center community cards (5 cards, 100 width + 10 spacing)
+    float communityStartX = (1920 - (5 * 110 - 10)) / 2.0f;
     for (size_t i = 0; i < communityCards.size(); ++i) {
-        float x = communityStartX + i * 120; // Card width 100 + spacing 20
-        Card card = communityCards[i]; // Make a copy
+        float x = communityStartX + i * 120; 
+        Card card = communityCards[i];
         card.setFaceUp(i < cardsToShow);
         card.draw(window, x, communityY);
     }
@@ -606,8 +589,8 @@ void drawGameElements(sf::RenderWindow& window, sf::Font& font,
     window.draw(p2winText);
 */
     // Hands
-    drawHand(player1Hand, window, font, 900, true); // Player 1's cards always visible
-    drawHand(player2Hand, window, font, 100, gameFinished); // Player 2's cards visible when round/game is finished
+    drawHand(player1Hand, window, font, 900, true);
+    drawHand(player2Hand, window, font, 100, gameFinished); 
 
     // Community Cards
     drawCommunityCards(communityCards, cardsToShow, window, font);
@@ -616,7 +599,7 @@ void drawGameElements(sf::RenderWindow& window, sf::Font& font,
     drawStakes(player1BetDisplay, player2BetDisplay, pendingStake, window, font);
     sf::Text potText("Pot: " + std::to_string(pot), font, 28);
     potText.setFillColor(sf::Color::Cyan);
-    potText.setPosition(900, 400); // Centered above community cards
+    potText.setPosition(900, 400); 
     window.draw(potText);
 
     // Scores
