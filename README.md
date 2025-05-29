@@ -1,6 +1,6 @@
 # Poker Game - Texas Hold'em version
 
-This is a simple Texas Hold'em poker game where you (Player 1) play against an AI opponent (Player 2).
+This is a simple Texas Hold'em poker game where you play against an AI opponent .
 
 ## How to Lunch the game
 To lunch the game you need to run ./poker file that is located in the build directory. Ensure that all required libraries are installed.
@@ -66,4 +66,4 @@ Each round of poker consists of several phases:
 *   You lose the game if your score reaches 0.
 *   When the game is over, a message will be displayed. You can then choose to `Play Again` (resets scores to 2000) or `Quit Game`.
 
-Good luck!
+May the cards be with you, Good luck!

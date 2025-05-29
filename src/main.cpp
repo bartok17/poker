@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <string>
 #include <cctype>
+#include <cstdlib> // For rand, srand
+#include <ctime>   // For time
 #include "hand.h"
 #include "card.h"
 #include "comparer.h"
@@ -27,7 +29,7 @@ bool isButtonClicked(const Button& btn, sf::Vector2i mouse);
 
 void drawHand(const Hand& hand, sf::RenderWindow& window, sf::Font& font, float y, bool showCards);
 void drawCommunityCards(const std::vector<Card>& communityCards, size_t cardsToShow, sf::RenderWindow& window, sf::Font& font);
-void drawStakes(int player1BetDisplay, int player2BetDisplay, int pendingStake, sf::RenderWindow& window, sf::Font& font);
+void drawStakes(int player1BetDisplay, int player2BetDisplay, int pendingStake, sf::RenderWindow& window, sf::Font& font, const std::string& player1Name, const std::string& player2Name);
 
 void startNewRound(Deck& deck, Hand& player1Hand, Hand& player2Hand, std::vector<Card>& communityCards,
                    size_t& cardsToShow, int& player1score, int& player2score, 
@@ -40,14 +42,16 @@ void advanceGamePhase(size_t& cardsToShow, bool& riverBettingPhase, bool& finalS
 
 void determineAndSetWinner(Hand& player1Hand, Hand& player2Hand, const std::vector<Card>& communityCards, 
                            int& pot, int& player1score, int& player2score,
-                           std::string& winnerText, int& winner, bool& player1Out, bool& player2Out);
+                           std::string& winnerText, int& winner, bool& player1Out, bool& player2Out,
+                           const std::string& player1Name, const std::string& player2Name);
 
 void handlePlayerBetAction(playerAI& ai,
                            int& pendingStake, int& player1score, int& player2score,
                            int& player1BetDisplay, int& player2BetDisplay, int& pot,
                            bool& allInPhase, size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
                            const Hand& player2Hand, const std::vector<Card>& communityCards, 
-                           std::string& winnerText, bool& gameFinished, int& winner);
+                           std::string& winnerText, bool& gameFinished, int& winner,
+                           const std::string& player1Name, const std::string& player2Name);
 
 void handlePlayerWaitAction(playerAI& ai, 
                             size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
@@ -55,9 +59,10 @@ void handlePlayerWaitAction(playerAI& ai,
                             int& player1BetDisplay, int& player2BetDisplay, int& pot,
                             bool& allInPhase,
                             const Hand& player2Hand, const std::vector<Card>& communityCards, 
-                            std::string& winnerText, bool& gameFinished, int& winner); 
+                            std::string& winnerText, bool& gameFinished, int& winner,
+                            const std::string& player1Name, const std::string& player2Name); 
 
-void handlePlayerPassAction(bool& gameFinished, int& winner, std::string& winnerText, int& pot, int& player2score, int& player1score);
+void handlePlayerPassAction(bool& gameFinished, int& winner, std::string& winnerText, int& pot, int& player2score, int& player1score, const std::string& player2Name);
 
 void updateAIInfo(playerAI& ai, const Hand& player2Hand, const std::vector<Card>& communityCards, size_t cardsToShow,
                   double& lastP2WinPercentage, int& lastCardsToShowState);
@@ -69,7 +74,8 @@ void drawGameElements(sf::RenderWindow& window, sf::Font& font,
                       int player1score, int player2score,
                       bool gameFinished, const std::string& winnerText,
                       const std::vector<Button*>& activeButtons,
-                      double lastP2WinPercentage);
+                      double lastP2WinPercentage,
+                      const std::string& player1Name, const std::string& player2Name);
 
 struct Button {
     sf::RectangleShape rect;
@@ -101,10 +107,16 @@ bool isButtonClicked(const Button& btn, sf::Vector2i mouse) {
 }
 
 int main() {
+    srand(static_cast<unsigned int>(time(nullptr))); // Seed for rand()
+
     AI_AGGRESSIVENESS = ((static_cast<float>(rand()) / RAND_MAX) * 0.2f) - 0.1f;
     AI_CALL_THRESHOLD += AI_AGGRESSIVENESS;
     AI_RAISE_THRESHOLD += AI_AGGRESSIVENESS;
     AI_FOLD_THRESHOLD += AI_AGGRESSIVENESS;
+
+    std::string player1Name = "Player";
+    std::vector<std::string> aiNames = {"Ben", "Ken", "Friederick", "Viper", "Jester", "Jonathan","michał"};
+    std::string player2Name = aiNames[rand() % aiNames.size()];
 
     size_t cardsToShow = 0;
     bool allInPhase = false, riverBettingPhase = false, finalStakePhase = false, gameFinished = false;
@@ -198,11 +210,11 @@ int main() {
                         handlePlayerWaitAction(ai, cardsToShow, riverBettingPhase, finalStakePhase,
                                                player1score, player2score, player1BetDisplay, player2BetDisplay, pot,
                                                allInPhase, player2Hand, communityCards,
-                                               winnerText, gameFinished, winner);
+                                               winnerText, gameFinished, winner, player1Name, player2Name);
                     else if (isButtonClicked(resetButton, sf::Vector2i(worldPos.x, worldPos.y)))
                         pendingStake = 0;
                     else if (isButtonClicked(passButton, sf::Vector2i(worldPos.x, worldPos.y))) {
-                        handlePlayerPassAction(gameFinished, winner, winnerText, pot, player2score, player1score);
+                        handlePlayerPassAction(gameFinished, winner, winnerText, pot, player2score, player1score, player2Name);
                         if (player1score <= 0) player1Out = true; 
                         if (player2score <= 0) player2Out = true;
                     } else if (isButtonClicked(submitButton, sf::Vector2i(worldPos.x, worldPos.y))) {
@@ -211,7 +223,7 @@ int main() {
                                                   player1BetDisplay, player2BetDisplay, pot,
                                                   allInPhase, cardsToShow, riverBettingPhase, finalStakePhase,
                                                   player2Hand, communityCards,
-                                                  winnerText, gameFinished, winner);
+                                                  winnerText, gameFinished, winner, player1Name, player2Name);
                     }
                 } else if (gameFinished && isButtonClicked(nextRoundButton, sf::Vector2i(worldPos.x, worldPos.y)) && !player1Out && !player2Out) {
                     startNewRound(deck, player1Hand, player2Hand, communityCards, cardsToShow,
@@ -238,7 +250,7 @@ int main() {
             cardsToShow = 5;
             gameFinished = true;
             determineAndSetWinner(player1Hand, player2Hand, communityCards, pot, player1score, player2score,
-                                  winnerText, winner, player1Out, player2Out);
+                                  winnerText, winner, player1Out, player2Out, player1Name, player2Name);
         }
         // Game over check
         if (!overallGameFinished && (player1Out || player2Out)) {
@@ -247,9 +259,9 @@ int main() {
             if (player1Out && player2Out)
                 winnerText = "Game Over! It's a draw somehow!";
             else if (player1Out)
-                winnerText = "Game Over! Player 2 Wins!";
+                winnerText = "Game Over! " + player2Name + " Wins!";
             else if (player2Out)
-                winnerText = "Game Over! Player 1 Wins!";
+                winnerText = "Game Over! " + player1Name + " Wins!";
         }
 
         updateAIInfo(ai, player2Hand, communityCards, cardsToShow, lastP2WinPercentage, lastCardsToShowState);
@@ -273,12 +285,12 @@ int main() {
             activeButtons.push_back(&quitButton);
         }
 
-        window.clear(sf::Color(0, 100, 0));
+        window.clear(sf::Color(0, 75, 0)); 
         window.setView(mainView);
 
         drawGameElements(window, font, player1Hand, player2Hand, communityCards, cardsToShow,
                          player1BetDisplay, player2BetDisplay, pendingStake, pot, player1score, player2score,
-                         gameFinished, winnerText, activeButtons, lastP2WinPercentage);
+                         gameFinished, winnerText, activeButtons, lastP2WinPercentage, player1Name, player2Name);
 
         window.display();
     }
@@ -329,17 +341,18 @@ void advanceGamePhase(size_t& cardsToShow, bool& riverBettingPhase, bool& finalS
 
 void determineAndSetWinner(Hand& player1Hand, Hand& player2Hand, const std::vector<Card>& communityCards, 
                            int& pot, int& player1score, int& player2score,
-                           std::string& winnerText, int& winner, bool& player1Out, bool& player2Out) {
+                           std::string& winnerText, int& winner, bool& player1Out, bool& player2Out,
+                           const std::string& player1Name, const std::string& player2Name) {
     Hand fullHand1 = player1Hand.combineHands(Hand{communityCards});
     Hand fullHand2 = player2Hand.combineHands(Hand{communityCards});
     int cmp = Comparer::compareHands(fullHand1, fullHand2);
 
     if (cmp == 0) {
-        winnerText = "Player 1 wins the pot of " + std::to_string(pot) + "!";
+        winnerText = player1Name + " wins the pot of " + std::to_string(pot) + "!";
         winner = 0;
         player1score += pot;
     } else if (cmp == 1) {
-        winnerText = "Player 2 wins the pot of " + std::to_string(pot) + "!";
+        winnerText = player2Name + " wins the pot of " + std::to_string(pot) + "!";
         winner = 1;
         player2score += pot;
     } else {
@@ -358,7 +371,8 @@ void handlePlayerBetAction(playerAI& ai,
                            int& player1BetDisplay, int& player2BetDisplay, int& pot,
                            bool& allInPhase, size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
                            const Hand& player2Hand, const std::vector<Card>& communityCards,
-                           std::string& winnerText, bool& gameFinished, int& winner) {
+                           std::string& winnerText, bool& gameFinished, int& winner,
+                           const std::string& player1Name, const std::string& player2Name) {
     int p1TotalBetForStreet = pendingStake; 
     int p1AdditionalBet = p1TotalBetForStreet - player1BetDisplay;
     if (p1TotalBetForStreet < player2BetDisplay && p1TotalBetForStreet < (player1score + player1BetDisplay)) {
@@ -386,7 +400,7 @@ void handlePlayerBetAction(playerAI& ai,
         if (winChance < AI_FOLD_THRESHOLD && player2score > amountForAIToCall) { 
             gameFinished = true;
             winner = 0;
-            winnerText += " Player 2 folds. You win!";
+            winnerText += " " + player2Name + " folds. " + player1Name + " wins!";
             player1score += pot; 
             pot = 0;
         } else if (winChance < AI_RAISE_THRESHOLD || amountForAIToCall >= player2score) { 
@@ -394,7 +408,7 @@ void handlePlayerBetAction(playerAI& ai,
             player2score -= aiActionAmount;
             pot += aiActionAmount;
             player2BetDisplay += aiActionAmount;
-            winnerText += " Player 2 calls " + std::to_string(aiActionAmount) + ".";
+            winnerText += " " + player2Name + " calls " + std::to_string(aiActionAmount) + ".";
             if (player2score == 0) allInPhase = true;
             if (!allInPhase && !gameFinished)
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
@@ -403,30 +417,32 @@ void handlePlayerBetAction(playerAI& ai,
             int aiCanRaiseMax = player2score - aiCallPart;
             if (aiCanRaiseMax > 0) {
                 int aiRaisePart = std::min({player1BetDisplay, pot / 2, aiCanRaiseMax}); 
-                if (aiRaisePart <= 0) aiRaisePart = std::min(50, aiCanRaiseMax);
+                if (aiRaisePart <= 0) aiRaisePart = std::min(50, aiCanRaiseMax); // Ensure some raise if possible
                 aiActionAmount = aiCallPart + aiRaisePart;
                 player2score -= aiActionAmount;
                 pot += aiActionAmount;
                 player2BetDisplay += aiActionAmount;
-                winnerText += " Player 2 raises to " + std::to_string(player2BetDisplay) + ".";
+                winnerText += " " + player2Name + " raises to " + std::to_string(player2BetDisplay) + ".";
                 if (player2score == 0) allInPhase = true;
             } else { 
                 aiActionAmount = std::min(amountForAIToCall, player2score);
                 player2score -= aiActionAmount;
                 pot += aiActionAmount;
                 player2BetDisplay += aiActionAmount;
-                winnerText += " Player 2 calls " + std::to_string(aiActionAmount) + ".";
+                winnerText += " " + player2Name + " calls " + std::to_string(aiActionAmount) + ".";
                 if (player2score == 0) allInPhase = true;
                 if (!allInPhase && !gameFinished)
                     advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
             }
         }
-    } else {
-        if (player1BetDisplay == player2BetDisplay) {
+    } else { // amountForAIToCall <= 0
+        if (player1BetDisplay == player2BetDisplay) { // Player 1 checked or matched AI's bet
              winnerText += " Stakes are even.";
              if (!allInPhase && !gameFinished)
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
         }
+        // If player1BetDisplay > player2BetDisplay, this case should have been caught by amountForAIToCall > 0
+        // If AI was the one to bet last and player matched, this is handled by stakes being even.
     }
     if ((player1score == 0 || player2score == 0) && !gameFinished)
         allInPhase = true;
@@ -443,7 +459,8 @@ void handlePlayerWaitAction(playerAI& ai,
                             int& player1BetDisplay, int& player2BetDisplay, int& pot,
                             bool& allInPhase,
                             const Hand& player2Hand, const std::vector<Card>& communityCards,
-                            std::string& winnerText, bool& gameFinished, int& winner) {
+                            std::string& winnerText, bool& gameFinished, int& winner,
+                            const std::string& player1Name, const std::string& player2Name) {
     if (player1BetDisplay < player2BetDisplay) { 
         int amountToCall = player2BetDisplay - player1BetDisplay;
         int p1ActualCall = std::min(amountToCall, player1score);
@@ -467,15 +484,15 @@ void handlePlayerWaitAction(playerAI& ai,
                 player2score -= aiBetAmount;
                 pot += aiBetAmount;
                 player2BetDisplay += aiBetAmount;
-                winnerText += " Player 2 bets " + std::to_string(aiBetAmount) + ".";
+                winnerText += " " + player2Name + " bets " + std::to_string(aiBetAmount) + ".";
                 if (player2score == 0) allInPhase = true;
             } else { 
-                 winnerText += " Player 2 checks.";
+                 winnerText += " " + player2Name + " checks.";
                  if (!allInPhase && !gameFinished)
                     advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
             }
         } else {
-            winnerText += " Player 2 checks.";
+            winnerText += " " + player2Name + " checks.";
             if (!allInPhase && !gameFinished)
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
         }
@@ -489,10 +506,10 @@ void handlePlayerWaitAction(playerAI& ai,
     }
 }
 
-void handlePlayerPassAction(bool& gameFinished, int& winner, std::string& winnerText, int& pot, int& player2score, int& player1score) {
+void handlePlayerPassAction(bool& gameFinished, int& winner, std::string& winnerText, int& pot, int& player2score, int& player1score, const std::string& player2Name) {
     gameFinished = true;
     winner = 1;
-    winnerText = "You passed. Player 2 wins the pot of " + std::to_string(pot) + "!";
+    winnerText = "You passed. " + player2Name + " wins the pot of " + std::to_string(pot) + "!";
     player2score += pot;
     pot = 0;
 }
@@ -531,13 +548,13 @@ void drawCommunityCards(const std::vector<Card>& communityCards, size_t cardsToS
     }
 }
 
-void drawStakes(int player1BetDisplay, int player2BetDisplay, int pendingStake, sf::RenderWindow& window, sf::Font& font) {
-    sf::Text p1BetText("P1 Bet: " + std::to_string(player1BetDisplay), font, 20);
+void drawStakes(int player1BetDisplay, int player2BetDisplay, int pendingStake, sf::RenderWindow& window, sf::Font& font, const std::string& player1Name, const std::string& player2Name) {
+    sf::Text p1BetText(player1Name + " Bet: " + std::to_string(player1BetDisplay), font, 20);
     p1BetText.setFillColor(sf::Color::Yellow);
     p1BetText.setPosition(50, LOGICAL_HEIGHT - 80);
     window.draw(p1BetText);
 
-    sf::Text p2BetText("P2 Bet: " + std::to_string(player2BetDisplay), font, 20);
+    sf::Text p2BetText(player2Name + " Bet: " + std::to_string(player2BetDisplay), font, 20);
     p2BetText.setFillColor(sf::Color::Yellow);
     p2BetText.setPosition(50, 40);
     window.draw(p2BetText);
@@ -555,29 +572,30 @@ void drawGameElements(sf::RenderWindow& window, sf::Font& font,
                       int player1score, int player2score,
                       bool gameFinished, const std::string& winnerText,
                       const std::vector<Button*>& activeButtons,
-                      double lastP2WinPercentage) {
+                      double lastP2WinPercentage,
+                      const std::string& player1Name, const std::string& player2Name) {
     // Uncomment for AI win% overlay
     /*
-    sf::Text p2winText("Opponent Win%: " + std::to_string(static_cast<int>(lastP2WinPercentage)) + "%", font, 28);
+    sf::Text p2winText(player2Name + " Win%: " + std::to_string(static_cast<int>(lastP2WinPercentage)) + "%", font, 28);
     p2winText.setFillColor(sf::Color::Magenta);
     p2winText.setPosition(1200, 40);
     window.draw(p2winText);
     */
     drawHand(player1Hand, window, font, 900, true);
-    drawHand(player2Hand, window, font, 100, gameFinished);
+    drawHand(player2Hand, window, font, 100, gameFinished); // Player 2's cards shown if game finished
     drawCommunityCards(communityCards, cardsToShow, window, font);
-    drawStakes(player1BetDisplay, player2BetDisplay, pendingStake, window, font);
+    drawStakes(player1BetDisplay, player2BetDisplay, pendingStake, window, font, player1Name, player2Name);
     sf::Text potText("Pot: " + std::to_string(pot), font, 28);
     potText.setFillColor(sf::Color::Cyan);
     potText.setPosition(900, 400); 
     window.draw(potText);
 
-    sf::Text scoreText1("Player 1 Score: " + std::to_string(player1score), font, 20);
+    sf::Text scoreText1(player1Name + " Score: " + std::to_string(player1score), font, 20);
     scoreText1.setFillColor(sf::Color::White);
     scoreText1.setPosition(1500, 1000);
     window.draw(scoreText1);
 
-    sf::Text scoreText2("Player 2 Score: " + std::to_string(player2score), font, 20);
+    sf::Text scoreText2(player2Name + " Score: " + std::to_string(player2score), font, 20);
     scoreText2.setFillColor(sf::Color::White);
     scoreText2.setPosition(1500, 40);
     window.draw(scoreText2);
