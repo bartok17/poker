@@ -1,4 +1,4 @@
-# Poker Game - Texas Hold'em version
+# Poker Texas Hold'em version
 
 This is a simple Texas Hold'em poker game where you play against an AI opponent .
 
