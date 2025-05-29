@@ -20,7 +20,7 @@ const unsigned int LOGICAL_HEIGHT = 1080;
 float AI_FOLD_THRESHOLD = 0.35;
 float AI_RAISE_THRESHOLD = 0.55;
 float AI_CALL_THRESHOLD = 0.55;
-float AI_AGGRESSIVENESS = 0;
+float AI_AGGRESSIVENESS = 0.1;
 
 struct Button;
 Button createButton(const std::string& label, sf::Font& font, sf::Vector2f size, sf::Vector2f pos, sf::Color color, sf::Color textColor, unsigned int textSize);
@@ -49,7 +49,7 @@ void handlePlayerBetAction(playerAI& ai,
                            int& pendingStake, int& player1score, int& player2score,
                            int& player1BetDisplay, int& player2BetDisplay, int& pot,
                            bool& allInPhase, size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase,
-                           const Hand& player2Hand, const std::vector<Card>& communityCards, 
+                           const Hand& player2Hand, const std::vector<Card>& communityCards,
                            std::string& winnerText, bool& gameFinished, int& winner,
                            const std::string& player1Name, const std::string& player2Name);
 
@@ -395,9 +395,38 @@ void handlePlayerBetAction(playerAI& ai,
          visibleBoard.assign(communityCards.begin(), communityCards.begin() + std::min(cardsToShow, communityCards.size()));
     double winChance = ai.evaluateHand(player2Hand, visibleBoard); 
 
+    float current_fold_threshold = AI_FOLD_THRESHOLD;
+    // Only apply the bet-size-based fold threshold increase if community cards are out
+    if (cardsToShow > 0 && amountForAIToCall > 0 && player2score > 0) {
+        float bet_to_stack_ratio = static_cast<float>(amountForAIToCall) / player2score;
+        
+        float calculated_increase = 0.0f;
+        if (bet_to_stack_ratio > 0.5f) { // If bet is > 50% of AI's stack
+            calculated_increase = 0.2f; // Standard significant increase
+        } else if (bet_to_stack_ratio > 0.25f) { // If bet is > 25% of AI's stack
+            calculated_increase = 0.1f; // Standard moderate increase
+        }
+
+        float actual_increase = calculated_increase;
+        if (calculated_increase > 0.0f) {
+            float bluff_call_tendency_chance = 0.3f; // 30% chance to be less cautious
+            if ((static_cast<float>(rand()) / RAND_MAX) < bluff_call_tendency_chance) {
+                // Reduce the calculated increase randomly.
+                // For example, make it 0% to 70% of its original value.
+                // A smaller 'actual_increase' means 'current_fold_threshold' will be lower,
+                // making the AI more likely to call/raise instead of folding.
+                actual_increase *= ((static_cast<float>(rand()) / RAND_MAX) * 0.7f); 
+            }
+        }
+        
+        current_fold_threshold += actual_increase;
+        // Cap the threshold to prevent it from becoming too high (e.g., > 0.9)
+        current_fold_threshold = std::min(current_fold_threshold, 0.9f);
+    }
+
     int aiActionAmount = 0; 
     if (amountForAIToCall > 0) { 
-        if (winChance < AI_FOLD_THRESHOLD && player2score > amountForAIToCall) { 
+        if (winChance < current_fold_threshold && player2score > amountForAIToCall) { 
             gameFinished = true;
             winner = 0;
             winnerText += " " + player2Name + " folds. " + player1Name + " wins!";
