@@ -1,8 +1,7 @@
 #include "card.h"
-
-
 #include <map>
 #include <iostream>
+
 
 Card::Card(Rank rank, Suit suit) : rank_(rank), suit_(suit) {}
 

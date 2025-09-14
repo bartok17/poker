@@ -36,6 +36,7 @@ set(SOURCES
     src/deck.cpp
     src/hand.cpp
     src/playerAI.cpp
+    src/ui.cpp
 )
 
 add_executable(poker ${SOURCES})

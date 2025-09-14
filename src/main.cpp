@@ -13,24 +13,87 @@
 #include "comparer.h"
 #include "deck.h"
 #include "playerAI.h"
+#include "ui.h" // NEW
 
-const unsigned int LOGICAL_WIDTH = 1920;
-const unsigned int LOGICAL_HEIGHT = 1080;
+// -----------------------------------------------------------------------------
+// Constants and globals
+// -----------------------------------------------------------------------------
+constexpr unsigned int LOGICAL_WIDTH  = 1920;
+constexpr unsigned int LOGICAL_HEIGHT = 1080;
 
-float AI_FOLD_THRESHOLD = 0.35;
-float AI_RAISE_THRESHOLD = 0.55;
-float AI_CALL_THRESHOLD = 0.55;
-float AI_AGGRESSIVENESS = 0.1;
+constexpr int DEFAULT_STACK = 2000;
+constexpr int BLIND_AMOUNT  = 50;
 
-struct Button;
-Button createButton(const std::string& label, sf::Font& font, sf::Vector2f size, sf::Vector2f pos, sf::Color color, sf::Color textColor, unsigned int textSize);
-void drawButton(sf::RenderWindow& window, const Button& btn);
-bool isButtonClicked(const Button& btn, sf::Vector2i mouse);
+// UI layout
+constexpr float BUTTON_Y = 980.f;
+constexpr float CARD_X_SPACING = 120.f;
+constexpr float HAND_START_X   = 800.f;
+constexpr float P1_HAND_Y      = 800.f;
+constexpr float P2_HAND_Y      = 200.f;
+constexpr float COMMUNITY_Y    = 500.f;
 
-void drawHand(const Hand& hand, sf::RenderWindow& window, sf::Font& font, float y, bool showCards);
-void drawCommunityCards(const std::vector<Card>& communityCards, size_t cardsToShow, sf::RenderWindow& window, sf::Font& font);
-void drawStakes(int player1BetDisplay, int player2BetDisplay, int pendingStake, sf::RenderWindow& window, sf::Font& font, const std::string& player1Name, const std::string& player2Name);
+// AI thresholds (tuned elsewhere at runtime)
+float AI_FOLD_THRESHOLD = 0.35f;
+float AI_RAISE_THRESHOLD = 0.55f;
+float AI_CALL_THRESHOLD = 0.55f;
+float AI_AGGRESSIVENESS = 0.1f;
 
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+static std::vector<Card> makeVisibleBoard(const std::vector<Card>& communityCards, size_t cardsToShow) {
+    std::vector<Card> visible;
+    if (cardsToShow > 0 && cardsToShow <= communityCards.size()) {
+        visible.assign(communityCards.begin(), communityCards.begin() + cardsToShow);
+    }
+    return visible;
+}
+
+static void enterAllInIfNeeded(bool gameFinished,
+                               int player1score, int player2score,
+                               bool& allInPhase,
+                               size_t& cardsToShow, bool& riverBettingPhase, bool& finalStakePhase) {
+    if ((player1score == 0 || player2score == 0) && !gameFinished) {
+        allInPhase = true;
+    }
+    if (allInPhase && !gameFinished) {
+        cardsToShow = 5;
+        finalStakePhase = true;
+        riverBettingPhase = false;
+    }
+}
+
+// Stretches fold threshold based on bet/stack ratio and small randomness (same logic, centralized)
+static float computeCurrentFoldThreshold(int amountForAIToCall, size_t cardsToShow, int player2score) {
+    float current = AI_FOLD_THRESHOLD;
+
+    if (cardsToShow > 0 && amountForAIToCall > 0 && player2score > 0) {
+        float bet_to_stack_ratio = static_cast<float>(amountForAIToCall) / player2score;
+
+        float calculated_increase = 0.0f;
+        if (bet_to_stack_ratio > 0.5f) {
+            calculated_increase = 0.2f;
+        } else if (bet_to_stack_ratio > 0.25f) {
+            calculated_increase = 0.1f;
+        }
+
+        float actual_increase = calculated_increase;
+        if (calculated_increase > 0.0f) {
+            float bluff_call_tendency_chance = 0.3f; // 30% chance to be less cautious
+            if ((static_cast<float>(rand()) / RAND_MAX) < bluff_call_tendency_chance) {
+                actual_increase *= ((static_cast<float>(rand()) / RAND_MAX) * 0.7f);
+            }
+        }
+
+        current = std::min(current + actual_increase, 0.9f);
+    }
+
+    return current;
+}
+
+// -----------------------------------------------------------------------------
+// Forward declarations (game flow)
+// -----------------------------------------------------------------------------
 void startNewRound(Deck& deck, Hand& player1Hand, Hand& player2Hand, std::vector<Card>& communityCards,
                    size_t& cardsToShow, int& player1score, int& player2score, 
                    int& player1BetDisplay, int& player2BetDisplay, int& pot,
@@ -60,62 +123,27 @@ void handlePlayerWaitAction(playerAI& ai,
                             bool& allInPhase,
                             const Hand& player2Hand, const std::vector<Card>& communityCards, 
                             std::string& winnerText, bool& gameFinished, int& winner,
-                            const std::string& player1Name, const std::string& player2Name); 
+                            const std::string& player1Name, const std::string& player2Name);
 
 void handlePlayerPassAction(bool& gameFinished, int& winner, std::string& winnerText, int& pot, int& player2score, int& player1score, const std::string& player2Name);
 
 void updateAIInfo(playerAI& ai, const Hand& player2Hand, const std::vector<Card>& communityCards, size_t cardsToShow,
                   double& lastP2WinPercentage, int& lastCardsToShowState);
 
-void drawGameElements(sf::RenderWindow& window, sf::Font& font,
-                      const Hand& player1Hand, const Hand& player2Hand,
-                      const std::vector<Card>& communityCards, size_t cardsToShow,
-                      int player1BetDisplay, int player2BetDisplay, int pendingStake, int pot,
-                      int player1score, int player2score,
-                      bool gameFinished, const std::string& winnerText,
-                      const std::vector<Button*>& activeButtons,
-                      double lastP2WinPercentage,
-                      const std::string& player1Name, const std::string& player2Name);
-
-struct Button {
-    sf::RectangleShape rect;
-    sf::Text text;
-};
-
-Button createButton(const std::string& label, sf::Font& font, sf::Vector2f size, sf::Vector2f pos, sf::Color color, sf::Color textColor, unsigned int textSize = 18) {
-    Button btn;
-    btn.rect.setSize(size);
-    btn.rect.setPosition(pos);
-    btn.rect.setFillColor(color);
-    btn.text.setString(label);
-    btn.text.setFont(font);
-    btn.text.setCharacterSize(textSize);
-    btn.text.setFillColor(textColor);
-    sf::FloatRect textRect = btn.text.getLocalBounds();
-    btn.text.setOrigin(textRect.left + textRect.width / 2.0f, textRect.top + textRect.height / 2.0f);
-    btn.text.setPosition(pos.x + size.x / 2.0f, pos.y + size.y / 2.0f);
-    return btn;
-}
-
-void drawButton(sf::RenderWindow& window, const Button& btn) {
-    window.draw(btn.rect);
-    window.draw(btn.text);
-}
-
-bool isButtonClicked(const Button& btn, sf::Vector2i mouse) {
-    return btn.rect.getGlobalBounds().contains(static_cast<float>(mouse.x), static_cast<float>(mouse.y));
-}
-
+// -----------------------------------------------------------------------------
+// Main
+// -----------------------------------------------------------------------------
 int main() {
     srand(static_cast<unsigned int>(time(nullptr))); // Seed for rand()
 
+    // Slight variability per run
     AI_AGGRESSIVENESS = ((static_cast<float>(rand()) / RAND_MAX) * 0.2f) - 0.1f;
-    AI_CALL_THRESHOLD += AI_AGGRESSIVENESS;
+    AI_CALL_THRESHOLD  += AI_AGGRESSIVENESS;
     AI_RAISE_THRESHOLD += AI_AGGRESSIVENESS;
-    AI_FOLD_THRESHOLD += AI_AGGRESSIVENESS;
+    AI_FOLD_THRESHOLD  += AI_AGGRESSIVENESS;
 
     std::string player1Name = "Player";
-    std::vector<std::string> aiNames = {"Ben", "Ken", "Friederick", "Viper", "Jester", "Jonathan","michał"};
+    std::vector<std::string> aiNames = {"Ben", "Ken", "Friederick", "Viper", "Jester", "Jonathan", "michał"};
     std::string player2Name = aiNames[rand() % aiNames.size()];
 
     size_t cardsToShow = 0;
@@ -123,10 +151,14 @@ int main() {
     Deck deck;
     Hand player1Hand, player2Hand;
     std::vector<Card> communityCards;
-    int player1score = 2000, player2score = 2000, player1BetDisplay = 0, player2BetDisplay = 0, pot = 0, pendingStake = 0;
+
+    int player1score = DEFAULT_STACK, player2score = DEFAULT_STACK;
+    int player1BetDisplay = 0, player2BetDisplay = 0, pot = 0, pendingStake = 0;
+
     std::string winnerText;
     int winner = -1;
     bool player1Out = false, player2Out = false, overallGameFinished = false;
+
     playerAI ai;
     double lastP2WinPercentage = 0.0;
     int lastCardsToShowState = -1;
@@ -164,18 +196,19 @@ int main() {
     };
     updateView(window.getSize());
 
-    Button submitButton   = createButton("Submit", font, {160, 60}, {300, 980}, sf::Color(100, 200, 100), sf::Color::Black);
-    Button add10Button    = createButton("+10", font, {80, 60}, {500, 980}, sf::Color(200, 200, 255), sf::Color::Black);
-    Button add50Button    = createButton("+50", font, {80, 60}, {600, 980}, sf::Color(200, 200, 255), sf::Color::Black);
-    Button add100Button   = createButton("+100", font, {80, 60}, {700, 980}, sf::Color(200, 200, 255), sf::Color::Black);
-    Button waitButton     = createButton("Wait", font, {80, 60}, {800, 980}, sf::Color(200, 255, 200), sf::Color::Black);
-    Button passButton     = createButton("Pass", font, {80, 60}, {900, 980}, sf::Color(255, 200, 200), sf::Color::Black);
-    Button resetButton    = createButton("Reset Bet", font, {120, 60}, {1000, 980}, sf::Color(220, 220, 220), sf::Color::Black);
-    Button nextRoundButton = createButton("Next Round", font, {200, 60}, {1200, 980}, sf::Color(255, 255, 100), sf::Color::Black);
-    Button playAgainButton = createButton("Play Again", font, {200, 60}, {LOGICAL_WIDTH / 2.0f - 220, 980}, sf::Color(100, 255, 100), sf::Color::Black);
-    Button quitButton      = createButton("Quit Game", font, {200, 60}, {LOGICAL_WIDTH / 2.0f + 20, 980}, sf::Color(255, 100, 100), sf::Color::Black);
+    // Buttons (type changed to ui::Button; factory call namespaced)
+    ui::Button submitButton    = ui::createButton("Submit",     font, {160, 60}, {300,  BUTTON_Y}, sf::Color(100, 200, 100), sf::Color::Black);
+    ui::Button add10Button     = ui::createButton("+10",        font, { 80, 60}, {500,  BUTTON_Y}, sf::Color(200, 200, 255), sf::Color::Black);
+    ui::Button add50Button     = ui::createButton("+50",        font, { 80, 60}, {600,  BUTTON_Y}, sf::Color(200, 200, 255), sf::Color::Black);
+    ui::Button add100Button    = ui::createButton("+100",       font, { 80, 60}, {700,  BUTTON_Y}, sf::Color(200, 200, 255), sf::Color::Black);
+    ui::Button waitButton      = ui::createButton("Wait",       font, { 80, 60}, {800,  BUTTON_Y}, sf::Color(200, 255, 200), sf::Color::Black);
+    ui::Button passButton      = ui::createButton("Pass",       font, { 80, 60}, {900,  BUTTON_Y}, sf::Color(255, 200, 200), sf::Color::Black);
+    ui::Button resetButton     = ui::createButton("Reset Bet",  font, {120, 60}, {1000, BUTTON_Y}, sf::Color(220, 220, 220), sf::Color::Black);
+    ui::Button nextRoundButton = ui::createButton("Next Round", font, {200, 60}, {1200, BUTTON_Y}, sf::Color(255, 255, 100), sf::Color::Black);
+    ui::Button playAgainButton = ui::createButton("Play Again", font, {200, 60}, {LOGICAL_WIDTH / 2.0f - 220, BUTTON_Y}, sf::Color(100, 255, 100), sf::Color::Black);
+    ui::Button quitButton      = ui::createButton("Quit Game",  font, {200, 60}, {LOGICAL_WIDTH / 2.0f +  20, BUTTON_Y}, sf::Color(255, 100, 100), sf::Color::Black);
 
-    std::vector<Button*> activeButtons;
+    std::vector<ui::Button*> activeButtons;
 
     while (window.isOpen()) {
         sf::Event event;
@@ -189,35 +222,35 @@ int main() {
                 sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos, mainView);
 
                 if (overallGameFinished) {
-                    if (isButtonClicked(playAgainButton, sf::Vector2i(worldPos.x, worldPos.y))) {
-                        player1score = 2000; player2score = 2000;
+                    if (ui::isButtonClicked(playAgainButton, sf::Vector2i(worldPos.x, worldPos.y))) {
+                        player1score = DEFAULT_STACK; player2score = DEFAULT_STACK;
                         player1Out = player2Out = overallGameFinished = gameFinished = false;
                         startNewRound(deck, player1Hand, player2Hand, communityCards, cardsToShow,
                                       player1score, player2score, player1BetDisplay, player2BetDisplay, pot,
                                       finalStakePhase, gameFinished, riverBettingPhase, winnerText, winner, allInPhase);
                         lastCardsToShowState = -1;
-                    } else if (isButtonClicked(quitButton, sf::Vector2i(worldPos.x, worldPos.y))) {
+                    } else if (ui::isButtonClicked(quitButton, sf::Vector2i(worldPos.x, worldPos.y))) {
                         window.close();
                     }
                 } else if (!gameFinished && !player1Out && !player2Out) {
-                    if (isButtonClicked(add10Button, sf::Vector2i(worldPos.x, worldPos.y)))
+                    if (ui::isButtonClicked(add10Button, sf::Vector2i(worldPos.x, worldPos.y)))
                         pendingStake = std::min(pendingStake + 10, player1score);
-                    else if (isButtonClicked(add50Button, sf::Vector2i(worldPos.x, worldPos.y)))
+                    else if (ui::isButtonClicked(add50Button, sf::Vector2i(worldPos.x, worldPos.y)))
                         pendingStake = std::min(pendingStake + 50, player1score);
-                    else if (isButtonClicked(add100Button, sf::Vector2i(worldPos.x, worldPos.y)))
+                    else if (ui::isButtonClicked(add100Button, sf::Vector2i(worldPos.x, worldPos.y)))
                         pendingStake = std::min(pendingStake + 100, player1score);
-                    else if (isButtonClicked(waitButton, sf::Vector2i(worldPos.x, worldPos.y)))
+                    else if (ui::isButtonClicked(waitButton, sf::Vector2i(worldPos.x, worldPos.y)))
                         handlePlayerWaitAction(ai, cardsToShow, riverBettingPhase, finalStakePhase,
                                                player1score, player2score, player1BetDisplay, player2BetDisplay, pot,
                                                allInPhase, player2Hand, communityCards,
                                                winnerText, gameFinished, winner, player1Name, player2Name);
-                    else if (isButtonClicked(resetButton, sf::Vector2i(worldPos.x, worldPos.y)))
+                    else if (ui::isButtonClicked(resetButton, sf::Vector2i(worldPos.x, worldPos.y)))
                         pendingStake = 0;
-                    else if (isButtonClicked(passButton, sf::Vector2i(worldPos.x, worldPos.y))) {
+                    else if (ui::isButtonClicked(passButton, sf::Vector2i(worldPos.x, worldPos.y))) {
                         handlePlayerPassAction(gameFinished, winner, winnerText, pot, player2score, player1score, player2Name);
                         if (player1score <= 0) player1Out = true; 
                         if (player2score <= 0) player2Out = true;
-                    } else if (isButtonClicked(submitButton, sf::Vector2i(worldPos.x, worldPos.y))) {
+                    } else if (ui::isButtonClicked(submitButton, sf::Vector2i(worldPos.x, worldPos.y))) {
                         if (pendingStake > 0)
                             handlePlayerBetAction(ai, pendingStake, player1score, player2score,
                                                   player1BetDisplay, player2BetDisplay, pot,
@@ -225,13 +258,13 @@ int main() {
                                                   player2Hand, communityCards,
                                                   winnerText, gameFinished, winner, player1Name, player2Name);
                     }
-                } else if (gameFinished && isButtonClicked(nextRoundButton, sf::Vector2i(worldPos.x, worldPos.y)) && !player1Out && !player2Out) {
+                } else if (gameFinished && ui::isButtonClicked(nextRoundButton, sf::Vector2i(worldPos.x, worldPos.y)) && !player1Out && !player2Out) {
                     startNewRound(deck, player1Hand, player2Hand, communityCards, cardsToShow,
                                   player1score, player2score, player1BetDisplay, player2BetDisplay, pot,
                                   finalStakePhase, gameFinished, riverBettingPhase, winnerText, winner, allInPhase);
                     lastCardsToShowState = -1;
-                } else if (gameFinished && isButtonClicked(playAgainButton, sf::Vector2i(worldPos.x, worldPos.y))) {
-                    player1score = 2000; player2score = 2000; pot = 0; pendingStake = 0;
+                } else if (gameFinished && ui::isButtonClicked(playAgainButton, sf::Vector2i(worldPos.x, worldPos.y))) {
+                    player1score = DEFAULT_STACK; player2score = DEFAULT_STACK; pot = 0; pendingStake = 0;
                     winnerText.clear(); winner = -1;
                     player1Out = player2Out = gameFinished = allInPhase = riverBettingPhase = finalStakePhase = false;
                     cardsToShow = 0;
@@ -240,7 +273,7 @@ int main() {
                     startNewRound(deck, player1Hand, player2Hand, communityCards, cardsToShow,
                                   player1score, player2score, player1BetDisplay, player2BetDisplay, pot,
                                   finalStakePhase, gameFinished, riverBettingPhase, winnerText, winner, allInPhase);
-                } else if (gameFinished && isButtonClicked(quitButton, sf::Vector2i(worldPos.x, worldPos.y))) {
+                } else if (gameFinished && ui::isButtonClicked(quitButton, sf::Vector2i(worldPos.x, worldPos.y))) {
                     window.close();
                 }
             }
@@ -252,6 +285,7 @@ int main() {
             determineAndSetWinner(player1Hand, player2Hand, communityCards, pot, player1score, player2score,
                                   winnerText, winner, player1Out, player2Out, player1Name, player2Name);
         }
+
         // Game over check
         if (!overallGameFinished && (player1Out || player2Out)) {
             overallGameFinished = true;
@@ -266,6 +300,7 @@ int main() {
 
         updateAIInfo(ai, player2Hand, communityCards, cardsToShow, lastP2WinPercentage, lastCardsToShowState);
 
+        // Buttons to show
         activeButtons.clear();
         if (overallGameFinished) {
             activeButtons.push_back(&playAgainButton);
@@ -285,18 +320,29 @@ int main() {
             activeButtons.push_back(&quitButton);
         }
 
-        window.clear(sf::Color(0, 75, 0)); 
+        // Render
+        window.clear(sf::Color(0, 75, 0));
         window.setView(mainView);
 
-        drawGameElements(window, font, player1Hand, player2Hand, communityCards, cardsToShow,
-                         player1BetDisplay, player2BetDisplay, pendingStake, pot, player1score, player2score,
-                         gameFinished, winnerText, activeButtons, lastP2WinPercentage, player1Name, player2Name);
+        ui::drawGameElements(window, font,
+                             player1Hand, player2Hand,
+                             communityCards, cardsToShow,
+                             player1BetDisplay, player2BetDisplay, pendingStake, pot,
+                             player1score, player2score,
+                             gameFinished, winnerText,
+                             activeButtons,
+                             lastP2WinPercentage,
+                             player1Name, player2Name,
+                             LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
         window.display();
     }
     return 0;
 }
 
+// -----------------------------------------------------------------------------
+// Game flow implementation
+// -----------------------------------------------------------------------------
 void startNewRound(Deck& deck, Hand& player1Hand, Hand& player2Hand, std::vector<Card>& communityCards,
                    size_t& cardsToShow, int& player1score, int& player2score, 
                    int& player1BetDisplay, int& player2BetDisplay, int& pot,
@@ -315,17 +361,24 @@ void startNewRound(Deck& deck, Hand& player1Hand, Hand& player2Hand, std::vector
         communityCards.push_back(deck.draw());
 
     cardsToShow = 0;
-    int blindAmount = 50;
     player1BetDisplay = 0;
     player2BetDisplay = 0;
-    int p1BlindPaid = std::min(blindAmount, player1score);
+
+    const int p1BlindPaid = std::min(BLIND_AMOUNT, player1score);
     player1score -= p1BlindPaid;
     player1BetDisplay = p1BlindPaid;
-    int p2BlindPaid = std::min(blindAmount, player2score);
+
+    const int p2BlindPaid = std::min(BLIND_AMOUNT, player2score);
     player2score -= p2BlindPaid;
     player2BetDisplay = p2BlindPaid;
+
     pot = p1BlindPaid + p2BlindPaid;
-    finalStakePhase = gameFinished = riverBettingPhase = allInPhase = false;
+
+    finalStakePhase = false;
+    gameFinished = false;
+    riverBettingPhase = false;
+    allInPhase = false;
+
     winnerText.clear();
     winner = -1;
 }
@@ -359,7 +412,7 @@ void determineAndSetWinner(Hand& player1Hand, Hand& player2Hand, const std::vect
         winnerText = "It's a draw! Pot: " + std::to_string(pot);
         winner = 2;
         player1score += pot / 2;
-        player2score += pot - (pot / 2); 
+        player2score += pot - (pot / 2);
     }
     pot = 0; 
     if (player1score <= 0) player1Out = true;
@@ -373,60 +426,34 @@ void handlePlayerBetAction(playerAI& ai,
                            const Hand& player2Hand, const std::vector<Card>& communityCards,
                            std::string& winnerText, bool& gameFinished, int& winner,
                            const std::string& player1Name, const std::string& player2Name) {
+    // Normalize to at least call if under-bet
     int p1TotalBetForStreet = pendingStake; 
     int p1AdditionalBet = p1TotalBetForStreet - player1BetDisplay;
     if (p1TotalBetForStreet < player2BetDisplay && p1TotalBetForStreet < (player1score + player1BetDisplay)) {
         p1TotalBetForStreet = player2BetDisplay; 
         p1AdditionalBet = p1TotalBetForStreet - player1BetDisplay;
     }
-    p1AdditionalBet = std::min(p1AdditionalBet, player1score);
-    if (p1AdditionalBet < 0) p1AdditionalBet = 0;
+    p1AdditionalBet = std::max(0, std::min(p1AdditionalBet, player1score));
+
     player1score -= p1AdditionalBet;
-    pot += p1AdditionalBet;
+    pot         += p1AdditionalBet;
     player1BetDisplay += p1AdditionalBet;
     pendingStake = 0;
     if (player1score == 0) allInPhase = true;
+
     winnerText = "You bet to " + std::to_string(player1BetDisplay) + ".";
 
     if (gameFinished) return;
-    int amountForAIToCall = player1BetDisplay - player2BetDisplay;
-    std::vector<Card> visibleBoard;
-    if (cardsToShow <= communityCards.size())
-         visibleBoard.assign(communityCards.begin(), communityCards.begin() + std::min(cardsToShow, communityCards.size()));
-    double winChance = ai.evaluateHand(player2Hand, visibleBoard); 
 
-    float current_fold_threshold = AI_FOLD_THRESHOLD;
-    // Only apply the bet-size-based fold threshold increase if community cards are out
-    if (cardsToShow > 0 && amountForAIToCall > 0 && player2score > 0) {
-        float bet_to_stack_ratio = static_cast<float>(amountForAIToCall) / player2score;
-        
-        float calculated_increase = 0.0f;
-        if (bet_to_stack_ratio > 0.5f) { // If bet is > 50% of AI's stack
-            calculated_increase = 0.2f; // Standard significant increase
-        } else if (bet_to_stack_ratio > 0.25f) { // If bet is > 25% of AI's stack
-            calculated_increase = 0.1f; // Standard moderate increase
-        }
+    const int amountForAIToCall = player1BetDisplay - player2BetDisplay;
+    const auto visibleBoard = makeVisibleBoard(communityCards, cardsToShow);
+    const double winChance = ai.evaluateHand(player2Hand, visibleBoard); 
 
-        float actual_increase = calculated_increase;
-        if (calculated_increase > 0.0f) {
-            float bluff_call_tendency_chance = 0.3f; // 30% chance to be less cautious
-            if ((static_cast<float>(rand()) / RAND_MAX) < bluff_call_tendency_chance) {
-                // Reduce the calculated increase randomly.
-                // For example, make it 0% to 70% of its original value.
-                // A smaller 'actual_increase' means 'current_fold_threshold' will be lower,
-                // making the AI more likely to call/raise instead of folding.
-                actual_increase *= ((static_cast<float>(rand()) / RAND_MAX) * 0.7f); 
-            }
-        }
-        
-        current_fold_threshold += actual_increase;
-        // Cap the threshold to prevent it from becoming too high (e.g., > 0.9)
-        current_fold_threshold = std::min(current_fold_threshold, 0.9f);
-    }
+    const float current_fold_threshold = computeCurrentFoldThreshold(amountForAIToCall, cardsToShow, player2score);
 
     int aiActionAmount = 0; 
-    if (amountForAIToCall > 0) { 
-        if (winChance < current_fold_threshold && player2score > amountForAIToCall) { 
+    if (amountForAIToCall > 0) {
+        if (winChance < current_fold_threshold && player2score > amountForAIToCall) {
             gameFinished = true;
             winner = 0;
             winnerText += " " + player2Name + " folds. " + player1Name + " wins!";
@@ -442,8 +469,8 @@ void handlePlayerBetAction(playerAI& ai,
             if (!allInPhase && !gameFinished)
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
         } else { 
-            int aiCallPart = std::min(amountForAIToCall, player2score);
-            int aiCanRaiseMax = player2score - aiCallPart;
+            const int aiCallPart = std::min(amountForAIToCall, player2score);
+            const int aiCanRaiseMax = player2score - aiCallPart;
             if (aiCanRaiseMax > 0) {
                 int aiRaisePart = std::min({player1BetDisplay, pot / 2, aiCanRaiseMax}); 
                 if (aiRaisePart <= 0) aiRaisePart = std::min(50, aiCanRaiseMax); // Ensure some raise if possible
@@ -465,21 +492,14 @@ void handlePlayerBetAction(playerAI& ai,
             }
         }
     } else { // amountForAIToCall <= 0
-        if (player1BetDisplay == player2BetDisplay) { // Player 1 checked or matched AI's bet
+        if (player1BetDisplay == player2BetDisplay) {
              winnerText += " Stakes are even.";
              if (!allInPhase && !gameFinished)
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
         }
-        // If player1BetDisplay > player2BetDisplay, this case should have been caught by amountForAIToCall > 0
-        // If AI was the one to bet last and player matched, this is handled by stakes being even.
     }
-    if ((player1score == 0 || player2score == 0) && !gameFinished)
-        allInPhase = true;
-    if (allInPhase && !gameFinished) {
-        cardsToShow = 5;
-        finalStakePhase = true;
-        riverBettingPhase = false;
-    }
+
+    enterAllInIfNeeded(gameFinished, player1score, player2score, allInPhase, cardsToShow, riverBettingPhase, finalStakePhase);
 }
 
 void handlePlayerWaitAction(playerAI& ai, 
@@ -491,8 +511,8 @@ void handlePlayerWaitAction(playerAI& ai,
                             std::string& winnerText, bool& gameFinished, int& winner,
                             const std::string& player1Name, const std::string& player2Name) {
     if (player1BetDisplay < player2BetDisplay) { 
-        int amountToCall = player2BetDisplay - player1BetDisplay;
-        int p1ActualCall = std::min(amountToCall, player1score);
+        const int amountToCall = player2BetDisplay - player1BetDisplay;
+        const int p1ActualCall = std::min(amountToCall, player1score);
         player1score -= p1ActualCall;
         pot += p1ActualCall;
         player1BetDisplay += p1ActualCall;
@@ -502,10 +522,9 @@ void handlePlayerWaitAction(playerAI& ai,
             advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
     } else { 
         winnerText = "You check.";
-        std::vector<Card> visibleBoard;
-        if (cardsToShow <= communityCards.size())
-            visibleBoard.assign(communityCards.begin(), communityCards.begin() + std::min(cardsToShow, communityCards.size()));
-        double winChance = ai.evaluateHand(player2Hand, visibleBoard);
+        const auto visibleBoard = makeVisibleBoard(communityCards, cardsToShow);
+        const double winChance = ai.evaluateHand(player2Hand, visibleBoard);
+
         if (winChance > AI_RAISE_THRESHOLD && player2score > 0) {
             int aiBetAmount = std::min({pot / 2, player2score / 2, player2score}); 
             if (aiBetAmount <= 0) aiBetAmount = std::min(50, player2score);
@@ -526,13 +545,8 @@ void handlePlayerWaitAction(playerAI& ai,
                 advanceGamePhase(cardsToShow, riverBettingPhase, finalStakePhase, player1BetDisplay, player2BetDisplay);
         }
     }
-    if ((player1score == 0 || player2score == 0) && !gameFinished)
-        allInPhase = true;
-    if (allInPhase && !gameFinished) {
-        cardsToShow = 5;
-        finalStakePhase = true;
-        riverBettingPhase = false;
-    }
+
+    enterAllInIfNeeded(gameFinished, player1score, player2score, allInPhase, cardsToShow, riverBettingPhase, finalStakePhase);
 }
 
 void handlePlayerPassAction(bool& gameFinished, int& winner, std::string& winnerText, int& pot, int& player2score, int& player1score, const std::string& player2Name) {
@@ -546,97 +560,8 @@ void handlePlayerPassAction(bool& gameFinished, int& winner, std::string& winner
 void updateAIInfo(playerAI& ai, const Hand& player2Hand, const std::vector<Card>& communityCards, size_t cardsToShow,
                   double& lastP2WinPercentage, int& lastCardsToShowState) {
     if (static_cast<int>(cardsToShow) != lastCardsToShowState) {
-        std::vector<Card> visibleBoard;
-        if (cardsToShow > 0 && cardsToShow <= communityCards.size())
-            visibleBoard.assign(communityCards.begin(), communityCards.begin() + cardsToShow);
+        const auto visibleBoard = makeVisibleBoard(communityCards, cardsToShow);
         lastP2WinPercentage = ai.evaluateHand(player2Hand, visibleBoard) * 100.0;
         lastCardsToShowState = static_cast<int>(cardsToShow);
     }
-}
-
-void drawHand(const Hand& hand, sf::RenderWindow& window, sf::Font& font, float yPosCategory, bool showCards) {
-    const auto& cards = hand.getCards();
-    float handStartX = 800; 
-    float cardOffsetY = (yPosCategory == 900) ? 800 : 200; 
-    for (size_t i = 0; i < cards.size(); ++i) { 
-        float x = handStartX + i * 120;
-        Card card = cards[i]; 
-        card.setFaceUp(showCards);
-        card.draw(window, x, cardOffsetY);
-    }
-}
-
-void drawCommunityCards(const std::vector<Card>& communityCards, size_t cardsToShow, sf::RenderWindow& window, sf::Font& font) {
-    float communityY = 500;
-    float communityStartX = (1920 - (5 * 110 - 10)) / 2.0f;
-    for (size_t i = 0; i < communityCards.size(); ++i) {
-        float x = communityStartX + i * 120; 
-        Card card = communityCards[i];
-        card.setFaceUp(i < cardsToShow);
-        card.draw(window, x, communityY);
-    }
-}
-
-void drawStakes(int player1BetDisplay, int player2BetDisplay, int pendingStake, sf::RenderWindow& window, sf::Font& font, const std::string& player1Name, const std::string& player2Name) {
-    sf::Text p1BetText(player1Name + " Bet: " + std::to_string(player1BetDisplay), font, 20);
-    p1BetText.setFillColor(sf::Color::Yellow);
-    p1BetText.setPosition(50, LOGICAL_HEIGHT - 80);
-    window.draw(p1BetText);
-
-    sf::Text p2BetText(player2Name + " Bet: " + std::to_string(player2BetDisplay), font, 20);
-    p2BetText.setFillColor(sf::Color::Yellow);
-    p2BetText.setPosition(50, 40);
-    window.draw(p2BetText);
-
-    sf::Text pendingText("Your Bet: " + std::to_string(pendingStake), font, 30);
-    pendingText.setFillColor(sf::Color::White);
-    pendingText.setPosition(50, LOGICAL_HEIGHT - 140);
-    window.draw(pendingText);
-}
-
-void drawGameElements(sf::RenderWindow& window, sf::Font& font,
-                      const Hand& player1Hand, const Hand& player2Hand,
-                      const std::vector<Card>& communityCards, size_t cardsToShow,
-                      int player1BetDisplay, int player2BetDisplay, int pendingStake, int pot,
-                      int player1score, int player2score,
-                      bool gameFinished, const std::string& winnerText,
-                      const std::vector<Button*>& activeButtons,
-                      double lastP2WinPercentage,
-                      const std::string& player1Name, const std::string& player2Name) {
-    // Uncomment for AI win% overlay
-    /*
-    sf::Text p2winText(player2Name + " Win%: " + std::to_string(static_cast<int>(lastP2WinPercentage)) + "%", font, 28);
-    p2winText.setFillColor(sf::Color::Magenta);
-    p2winText.setPosition(1200, 40);
-    window.draw(p2winText);
-    */
-    drawHand(player1Hand, window, font, 900, true);
-    drawHand(player2Hand, window, font, 100, gameFinished); // Player 2's cards shown if game finished
-    drawCommunityCards(communityCards, cardsToShow, window, font);
-    drawStakes(player1BetDisplay, player2BetDisplay, pendingStake, window, font, player1Name, player2Name);
-    sf::Text potText("Pot: " + std::to_string(pot), font, 28);
-    potText.setFillColor(sf::Color::Cyan);
-    potText.setPosition(900, 400); 
-    window.draw(potText);
-
-    sf::Text scoreText1(player1Name + " Score: " + std::to_string(player1score), font, 20);
-    scoreText1.setFillColor(sf::Color::White);
-    scoreText1.setPosition(1500, 1000);
-    window.draw(scoreText1);
-
-    sf::Text scoreText2(player2Name + " Score: " + std::to_string(player2score), font, 20);
-    scoreText2.setFillColor(sf::Color::White);
-    scoreText2.setPosition(1500, 40);
-    window.draw(scoreText2);
-
-    if (gameFinished) {
-        sf::Text winAnnounceText(winnerText, font, 36);
-        winAnnounceText.setFillColor(sf::Color::White);
-        sf::FloatRect textRect = winAnnounceText.getLocalBounds();
-        winAnnounceText.setOrigin(textRect.left + textRect.width / 2.0f, textRect.top + textRect.height / 2.0f);
-        winAnnounceText.setPosition(LOGICAL_WIDTH / 2.0f, LOGICAL_HEIGHT / 2.0f + 200.f); 
-        window.draw(winAnnounceText);
-    }
-    for (const auto& btnPtr : activeButtons)
-        if (btnPtr) drawButton(window, *btnPtr);
 }
