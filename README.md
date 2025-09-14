@@ -1,12 +1,51 @@
 # Poker Texas Hold'em version
 
-This is a simple Texas Hold'em poker game where you play against an AI opponent .
+This is a simple Texas Hold'em poker game where you play against an AI opponent.
 
-## How to Lunch the game
-To lunch the game you need to run ./poker file that is located in the build directory. Ensure that all required libraries are installed.
-to rebuild the game run ./startGame.sh this will rebuild all required things. If further actions are needed, you can always modify the startGame file 
+## How to Launch the Game
 
-the game uses 
+- Quick start (recommended):
+  - macOS/Linux:
+    1. Make the script executable (first time only): `chmod +x ./startGame.sh`
+    2. Run: `./startGame.sh`
+  - Windows:
+    1. Run: `startGame.bat`
+
+- From Visual Studio Code:
+  - macOS/Linux: open the integrated terminal and run `./startGame.sh`
+  - Windows: open the integrated terminal (PowerShell or cmd) and run `startGame.bat`
+
+- Build manually with CMake:
+  - macOS/Linux:
+    - `rm -rf build && cmake -S . -B build`
+    - `cmake --build build`
+    - `./build/poker`
+  - Windows (PowerShell or cmd):
+    - `rd /s /q build` (or delete the build folder manually)
+    - `cmake -S . -B build`
+    - `cmake --build build --config Release`
+    - `.\build\Release\poker.exe` (or `.\build\poker.exe` for single-config generators)
+
+Entry point: [src/main.cpp](src/main.cpp)
+
+## Dependencies (SFML handled automatically)
+
+- CMake first tries to find system SFML; if not found, it auto-fetches and builds SFML 2.6.1 (see [CMakeLists.txt](CMakeLists.txt)). First build may take longer.
+- Windows: required SFML DLLs are copied next to the executable after build.
+
+Optional: use a system SFML
+- Default is to try system SFML first: `-DUSE_SYSTEM_SFML=ON` (then falls back to fetch if not found).
+- Windows with vcpkg:
+  - `vcpkg install sfml:x64-windows`
+  - Configure with: `cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg.cmake`
+
+## Fonts
+
+The game loads Arial/DejaVu automatically. If text is missing, ensure one of:
+- `arial.ttf` in the project root, or system fonts:
+  - Windows: `C:/Windows/Fonts/arial.ttf`
+  - Linux: `/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`
+  - macOS: `/System/Library/Fonts/Supplemental/Arial.ttf`
 
 ## How to Play
 
@@ -66,4 +105,4 @@ Each round of poker consists of several phases:
 *   You lose the game if your score reaches 0.
 *   When the game is over, a message will be displayed. You can then choose to `Play Again` (resets scores to 2000) or `Quit Game`.
 
-May the cards be with you, Good luck!
+May the cards be with you. Good luck!
